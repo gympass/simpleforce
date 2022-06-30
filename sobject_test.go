@@ -138,7 +138,7 @@ func TestSObject_Create(t *testing.T) {
 
 	// Positive
 	case1 := client.SObject("Case")
-	case1Result := case1.Set("Subject", "Case created by simpleforce on "+time.Now().Format("2006/01/02 03:04:05")).
+	case1Result, _ := case1.Set("Subject", "Case created by simpleforce on "+time.Now().Format("2006/01/02 03:04:05")).
 		Set("Comments", "This case is created by simpleforce").
 		Create()
 	if case1Result == nil || case1Result.ID() == "" || case1Result.Type() != case1.Type() {
@@ -149,7 +149,7 @@ func TestSObject_Create(t *testing.T) {
 
 	// Positive 2
 	caseComment1 := client.SObject("CaseComment")
-	caseComment1Result := caseComment1.Set("ParentId", case1Result.ID()).
+	caseComment1Result, _ := caseComment1.Set("ParentId", case1Result.ID()).
 		Set("CommentBody", "This comment is created by simpleforce & used for testing").
 		Set("IsPublished", true).
 		Create()
@@ -161,25 +161,25 @@ func TestSObject_Create(t *testing.T) {
 
 	// Negative: object without type.
 	obj := client.SObject()
-	if obj.Create() != nil {
+	if _, err := obj.Create(); err == nil {
 		t.Fail()
 	}
 
 	// Negative: object without client.
 	obj = &SObject{}
-	if obj.Create() != nil {
+	if _, err := obj.Create(); err == nil {
 		t.Fail()
 	}
 
 	// Negative: Invalid type
 	obj = client.SObject("__SOME_INVALID_TYPE__")
-	if obj.Create() != nil {
+	if _, err := obj.Create(); err == nil {
 		t.Fail()
 	}
 
 	// Negative: Invalid field
 	obj = client.SObject("Case").Set("__SOME_INVALID_FIELD__", "")
-	if obj.Create() != nil {
+	if _, err := obj.Create(); err == nil {
 		t.Fail()
 	}
 }
@@ -188,9 +188,14 @@ func TestSObject_Update(t *testing.T) {
 	client := requireClient(t, true)
 
 	// Positive
-	if client.SObject("Case").
+	case1, err := client.SObject("Case").
 		Set("Subject", "Case created by simpleforce on "+time.Now().Format("2006/01/02 03:04:05")).
-		Create().
+		Create()
+	if err != nil {
+		t.Fail()
+	}
+
+	if case1.
 		Set("Subject", "Case subject updated by simpleforce").
 		Update().
 		Get().
@@ -204,7 +209,7 @@ func TestSObject_Upsert(t *testing.T) {
 
 	// Positive create new object through upsert
 	case1 := client.SObject("Case")
-	case1Result := case1.Set("Subject", "Case created by simpleforce on "+time.Now().Format("2006/01/02 03:04:05")).
+	case1Result, _ := case1.Set("Subject", "Case created by simpleforce on "+time.Now().Format("2006/01/02 03:04:05")).
 		Set("Comments", "This case is created by simpleforce").
 		Set("customExtIdField__c", uuid.NewString()).
 		Set("ExternalIDField", "customExtIdField__c").
@@ -219,7 +224,7 @@ func TestSObject_Upsert(t *testing.T) {
 	case2 := client.SObject("Case").
 		Set("Subject", "Case created by simpleforce on "+time.Now().Format("2006/01/02 03:04:05")).
 		Set("customExtIdField__c", uuid.NewString())
-	case2Result := case2.Create()
+	case2Result, _ := case2.Create()
 	case2.
 		Set("Subject", "Case subject updated by simpleforce").
 		Set("ExternalIDField", "customExtIdField__c").
@@ -232,13 +237,13 @@ func TestSObject_Upsert(t *testing.T) {
 
 	// Negative: object without type.
 	obj := client.SObject()
-	if obj.Upsert() != nil {
+	if _, err := obj.Upsert(); err == nil {
 		t.Fail()
 	}
 
 	// Negative: object without client.
 	obj = &SObject{}
-	if obj.Upsert() != nil {
+	if _, err := obj.Upsert(); err == nil {
 		t.Fail()
 	}
 
@@ -246,7 +251,7 @@ func TestSObject_Upsert(t *testing.T) {
 	obj = client.SObject("__SOME_INVALID_TYPE__").
 		Set("ExternalIDField", "customExtIdField__c").
 		Set("customExtIdField__c", uuid.NewString())
-	if obj.Upsert() != nil {
+	if _, err := obj.Upsert(); err == nil {
 		t.Fail()
 	}
 
@@ -255,14 +260,14 @@ func TestSObject_Upsert(t *testing.T) {
 		Set("ExternalIDField", "customExtIdField__c").
 		Set("customExtIdField__c", uuid.NewString()).
 		Set("__SOME_INVALID_FIELD__", "")
-	if obj.Upsert() != nil {
+	if _, err := obj.Upsert(); err == nil {
 		t.Fail()
 	}
 
 	// Negative: Missing ext ID
 	obj = client.SObject("Case").
 		Set("ExternalIDField", "customExtIdField__c")
-	if obj.Upsert() != nil {
+	if _, err := obj.Upsert(); err == nil {
 		t.Fail()
 	}
 }
@@ -271,10 +276,10 @@ func TestSObject_Delete(t *testing.T) {
 	client := requireClient(t, true)
 
 	// Positive: create a case first then delete it and verify if it is gone.
-	case1 := client.SObject("Case").
+	case1, _ := client.SObject("Case").
 		Set("Subject", "Case created by simpleforce on "+time.Now().Format("2006/01/02 03:04:05")).
-		Create().
-		Get()
+		Create()
+	case1 = case1.Get()
 	if case1 == nil || case1.ID() == "" {
 		t.Fatal()
 	}
@@ -293,10 +298,10 @@ func TestSObject_GetUpdate(t *testing.T) {
 	client := requireClient(t, true)
 
 	// Create a new case first.
-	case1 := client.SObject("Case").
+	case1, _ := client.SObject("Case").
 		Set("Subject", "Original").
-		Create().
-		Get()
+		Create()
+	case1 = case1.Get()
 
 	// Query the case by ID, then update the Subject.
 	case2 := client.SObject("Case").
@@ -313,6 +318,6 @@ func TestSObject_GetUpdate(t *testing.T) {
 		t.Fail()
 	}
 
-	user1 := client.SObject("User").Create()
+	user1, _ := client.SObject("User").Create()
 	log.Println(user1.ID())
 }
